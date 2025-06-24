@@ -1,48 +1,21 @@
-import struct
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
+from torchvision import datasets, transforms
 
-# Paths to MNIST files
-TRAIN_IMAGES = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/train-images.idx3-ubyte'
-TRAIN_LABELS = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/train-labels.idx1-ubyte'
-TEST_IMAGES = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/t10k-images.idx3-ubyte'
-TEST_LABELS = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/t10k-labels.idx1-ubyte'
+# Use torchvision to load MNIST
+transform = transforms.Compose([
+    transforms.ToTensor(),  # Converts to [0,1] and shape (1,28,28)
+    transforms.Lambda(lambda x: x.view(-1))  # Flatten to (784,)
+])
 
-# Function to read images
-def read_images(filename):
-    with open(filename, 'rb') as f:
-        magic, num, rows, cols = struct.unpack('>IIII', f.read(16))
-        images = np.frombuffer(f.read(), dtype=np.uint8)
-        images = images.reshape(num, rows * cols)
-        return images
+train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-# Function to read labels
-def read_labels(filename):
-    with open(filename, 'rb') as f:
-        magic, num = struct.unpack('>II', f.read(8))
-        labels = np.frombuffer(f.read(), dtype=np.uint8)
-        return labels
-
-# Load data
-x_train = read_images(TRAIN_IMAGES)
-y_train = read_labels(TRAIN_LABELS)
-x_test = read_images(TEST_IMAGES)
-y_test = read_labels(TEST_LABELS)
-
-# Normalize and convert to tensors
-x_train = torch.tensor(x_train / 255.0, dtype=torch.float32)
-y_train = torch.tensor(y_train, dtype=torch.long)
-x_test = torch.tensor(x_test / 255.0, dtype=torch.float32)
-y_test = torch.tensor(y_test, dtype=torch.long)
-
-# Create datasets and loaders
-train_ds = TensorDataset(x_train, y_train)
-test_ds = TensorDataset(x_test, y_test)
-train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_ds, batch_size=1000)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=1000)
 
 # Define 2-layer neural network
 class Net(nn.Module):

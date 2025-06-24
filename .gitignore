@@ -46,3 +46,5 @@ MNIST Dataset/
 # OS files
 .DS_Store
 Thumbs.db
+
+mnist_model.pth
