@@ -103,7 +103,11 @@
             .then(res => res.json())
             .then(data => {
                 document.getElementById('result').innerText = data.prediction !== undefined ? 'Prediction: ' + data.prediction : 'Error';
-                document.getElementById('gpt-result').innerText = data.gpt_validation ? 'GPT Validation: ' + data.gpt_validation : '';
+                if (data.gpt_validation && !data.gpt_validation.toLowerCase().startsWith('openai error')) {
+                    document.getElementById('gpt-result').innerText = 'GPT Validation: ' + data.gpt_validation;
+                } else {
+                    document.getElementById('gpt-result').innerText = '';
+                }
             })
             .catch(() => {
                 document.getElementById('result').innerText = 'Error';

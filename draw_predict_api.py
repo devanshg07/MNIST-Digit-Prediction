@@ -1,8 +1,3 @@
-# Instructions:
-# 1. Start this backend: python draw_predict_api.py
-# 2. In another terminal, run: python -m http.server 8000
-# 3. Open http://localhost:8000/draw_predict_frontend.html in your browser
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image, ImageOps
