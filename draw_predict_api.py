@@ -13,6 +13,8 @@ import torch
 import torch.nn as nn
 import os
 from scipy import ndimage
+from dotenv import load_dotenv
+import openai
 
 # Model definition (must match training)
 class Net(nn.Module):
@@ -34,6 +36,10 @@ if os.path.exists(MODEL_PATH):
     model.eval()
 else:
     model = None
+
+# Load OpenAI key from .env
+load_dotenv()
+openai.api_key = os.getenv("openaikey")
 
 def preprocess(image):
     # Convert to grayscale
@@ -71,6 +77,29 @@ def preprocess(image):
     tensor = torch.tensor(new_img).view(1, 28*28)
     return tensor
 
+def validate_with_gpt(image, model_prediction):
+    # Convert image to base64 string
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    prompt = (
+        "This is a 28x28 pixel image of a handwritten digit. "
+        "The model predicted it is a '{}'. "
+        "Does this look correct? Reply with only the correct digit (0-9) or 'uncertain'."
+    ).format(model_prediction)
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {"role": "system", "content": "You are a digit recognition expert."},
+                {"role": "user", "content": prompt, "images": [{"image": img_str, "mime_type": "image/png"}]}
+            ],
+            max_tokens=5
+        )
+        return response.choices[0].message['content'].strip()
+    except Exception as e:
+        return f"OpenAI error: {e}"
+
 app = Flask(__name__)
 CORS(app)
 
@@ -93,7 +122,10 @@ def predict():
         with torch.no_grad():
             output = model(tensor)
             pred = output.argmax(dim=1).item()
-        return jsonify({'prediction': int(pred)})
+        # Recreate the 28x28 image for GPT validation
+        processed_img = Image.fromarray((tensor.view(28,28).numpy()*255).astype('uint8'))
+        gpt_validation = validate_with_gpt(processed_img, pred)
+        return jsonify({'prediction': int(pred), 'gpt_validation': gpt_validation})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
