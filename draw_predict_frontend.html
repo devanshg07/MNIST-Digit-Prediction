@@ -3,74 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <title>Digit Drawing Prediction</title>
+    <link rel="stylesheet" href="draw_predict_frontend.css">
     <style>
-        #canvas {
-            border: 1px solid #000;
-            background: #fff;
-            touch-action: none;
-        }
-        #result {
-            font-size: 2em;
-            margin-top: 10px;
-        }
+      #canvas {
+        image-rendering: auto;
+      }
     </style>
 </head>
 <body>
     <h2>Draw a digit (0-9)</h2>
-    <canvas id="canvas" width="280" height="280"></canvas><br>
-    <button onclick="predict()">Predict</button>
-    <button onclick="clearCanvas()">Clear</button>
-    <div id="result"></div>
+    <div class="center-box">
+        <canvas id="canvas" width="280" height="280"></canvas>
+        <div>
+            <button class="btn" onclick="predict()">Predict</button>
+            <button class="btn" onclick="clearCanvas()">Clear</button>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="gpt-result" id="gpt-result"></div>
+    </div>
     <script>
+        const CANVAS_SIZE = 280;
+        const MNIST_SIZE = 28;
+        const PIXEL_SIZE = CANVAS_SIZE / MNIST_SIZE;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
-        ctx.lineWidth = 16;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = 'black';
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        let mnistData = Array(MNIST_SIZE * MNIST_SIZE).fill(0);
 
-        canvas.addEventListener('mousedown', e => { drawing = true; });
-        canvas.addEventListener('mouseup', e => { drawing = false; ctx.beginPath(); });
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', e => { drawing = true; });
-        canvas.addEventListener('touchend', e => { drawing = false; ctx.beginPath(); });
-        canvas.addEventListener('touchmove', drawTouch);
-
-        function draw(e) {
-            if (!drawing) return;
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(e.offsetX, e.offsetY);
+        function pixelizeImage(data) {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            for (let y = 0; y < MNIST_SIZE; y++) {
+                for (let x = 0; x < MNIST_SIZE; x++) {
+                    ctx.fillStyle = data[y * MNIST_SIZE + x] > 0.5 ? '#000' : '#fff';
+                    ctx.fillRect(x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
+                }
+            }
         }
-        function drawTouch(e) {
-            e.preventDefault();
-            if (!drawing) return;
+
+        function drawAtEvent(e) {
             const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            const x = touch.clientX - rect.left;
-            const y = touch.clientY - rect.top;
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
+            const x = Math.floor(((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) / PIXEL_SIZE);
+            const y = Math.floor(((e.touches ? e.touches[0].clientY : e.clientY) - rect.top) / PIXEL_SIZE);
+            if (x >= 0 && x < MNIST_SIZE && y >= 0 && y < MNIST_SIZE) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < MNIST_SIZE && ny >= 0 && ny < MNIST_SIZE) {
+                            mnistData[ny * MNIST_SIZE + nx] = 1;
+                        }
+                    }
+                }
+                pixelizeImage(mnistData);
+            }
         }
+
+        canvas.addEventListener('mousedown', e => { drawing = true; drawAtEvent(e); });
+        canvas.addEventListener('mouseup', () => { drawing = false; });
+        canvas.addEventListener('mouseleave', () => { drawing = false; });
+        canvas.addEventListener('mousemove', e => { if (drawing) drawAtEvent(e); });
+        canvas.addEventListener('touchstart', e => { drawing = true; drawAtEvent(e); });
+        canvas.addEventListener('touchend', () => { drawing = false; });
+        canvas.addEventListener('touchcancel', () => { drawing = false; });
+        canvas.addEventListener('touchmove', e => { if (drawing) drawAtEvent(e); });
+
         function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            mnistData = Array(MNIST_SIZE * MNIST_SIZE).fill(0);
+            pixelizeImage(mnistData);
             document.getElementById('result').innerText = '';
+            document.getElementById('gpt-result').innerText = '';
         }
+
         function predict() {
-            // Downscale to 28x28 and get base64
-            const small = document.createElement('canvas');
-            small.width = 28;
-            small.height = 28;
-            const sctx = small.getContext('2d');
-            sctx.drawImage(canvas, 0, 0, 28, 28);
-            const dataURL = small.toDataURL('image/png');
+            // Convert mnistData to PNG
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = MNIST_SIZE;
+            tempCanvas.height = MNIST_SIZE;
+            const tctx = tempCanvas.getContext('2d');
+            tctx.fillStyle = '#fff';
+            tctx.fillRect(0, 0, MNIST_SIZE, MNIST_SIZE);
+            const imgData = tctx.createImageData(MNIST_SIZE, MNIST_SIZE);
+            for (let i = 0; i < mnistData.length; i++) {
+                const v = mnistData[i] > 0.5 ? 0 : 255;
+                imgData.data[i * 4 + 0] = v;
+                imgData.data[i * 4 + 1] = v;
+                imgData.data[i * 4 + 2] = v;
+                imgData.data[i * 4 + 3] = 255;
+            }
+            tctx.putImageData(imgData, 0, 0);
+            const dataURL = tempCanvas.toDataURL('image/png');
+            document.getElementById('result').innerText = '...';
+            document.getElementById('gpt-result').innerText = '...';
             fetch('http://127.0.0.1:5000/predict', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -78,16 +102,17 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.prediction !== undefined) {
-                    document.getElementById('result').innerText = 'Prediction: ' + data.prediction;
-                } else {
-                    document.getElementById('result').innerText = 'Error: ' + data.error;
-                }
+                document.getElementById('result').innerText = data.prediction !== undefined ? 'Prediction: ' + data.prediction : 'Error';
+                document.getElementById('gpt-result').innerText = data.gpt_validation ? 'GPT Validation: ' + data.gpt_validation : '';
             })
-            .catch(err => {
-                document.getElementById('result').innerText = 'Error: ' + err;
+            .catch(() => {
+                document.getElementById('result').innerText = 'Error';
+                document.getElementById('gpt-result').innerText = '';
             });
         }
+
+        // Initial draw
+        pixelizeImage(mnistData);
     </script>
 </body>
 </html> 
