@@ -6,10 +6,10 @@ import torch.nn as nn
 import torch.optim as optim
 
 # Paths to MNIST files
-TRAIN_IMAGES = 'MNIST Dataset/train-images.idx3-ubyte'
-TRAIN_LABELS = 'MNIST Dataset/train-labels.idx1-ubyte'
-TEST_IMAGES = 'MNIST Dataset/t10k-images.idx3-ubyte'
-TEST_LABELS = 'MNIST Dataset/t10k-labels.idx1-ubyte'
+TRAIN_IMAGES = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/train-images.idx3-ubyte'
+TRAIN_LABELS = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/train-labels.idx1-ubyte'
+TEST_IMAGES = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/t10k-images.idx3-ubyte'
+TEST_LABELS = 'C:\Users\devan\Downloads\Coding\Digit Detection\MNIST Dataset/t10k-labels.idx1-ubyte'
 
 # Function to read images
 def read_images(filename):
@@ -94,4 +94,5 @@ def evaluate(model, loader):
 
 if __name__ == '__main__':
     train(model, train_loader, criterion, optimizer, epochs=5)
-    evaluate(model, test_loader) 
+    evaluate(model, test_loader)
+    torch.save(model.state_dict(), 'mnist_model.pth') 
