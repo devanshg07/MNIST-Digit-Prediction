@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from PIL import Image, ImageOps
 import io
@@ -98,9 +98,13 @@ def validate_with_gpt(image, model_prediction):
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/', methods=['GET'])
-def index():
-    return 'Digit Prediction API is running.'
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'draw_predict_frontend.html')
+
+@app.route('/draw_predict_frontend.css')
+def serve_css():
+    return send_from_directory('.', 'draw_predict_frontend.css')
 
 @app.route('/predict', methods=['POST'])
 def predict():
